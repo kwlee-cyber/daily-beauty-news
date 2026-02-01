@@ -12,10 +12,7 @@ const RSS_SOURCES = [
 
 export async function GET() {
   const apiKey = process.env.GEMINI_API_KEY;
-  
-  if (!apiKey) {
-    return NextResponse.json([{ title: "설정 오류", summary: "Vercel에 GEMINI_API_KEY를 등록해주세요.", source: "System" }]);
-  }
+  if (!apiKey) return NextResponse.json([{ title: "환경변수 오류", summary: "Vercel 설정에 GEMINI_API_KEY가 없습니다.", source: "System" }]);
 
   try {
     const requests = RSS_SOURCES.map(async (source) => {
@@ -35,31 +32,34 @@ export async function GET() {
 
     const summarizedNews = await Promise.all(rawNews.map(async (news: any) => {
       try {
-        // 가장 안정적인 주소 형식으로 시도 (v1beta)
+        // v1beta 주소와 gemini-1.5-flash 모델의 조합이 가장 확실합니다.
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `Translate title to Korean and summarize in 3 bullet points in Korean.\n\nTitle: ${news.title}\nContent: ${news.content}` }] }]
+            contents: [{
+              parts: [{
+                text: `너는 뷰티 기술 에디터야. 다음 뉴스를 한글로 요약해줘.\n\n제목: ${news.title}\n내용: ${news.content}`
+              }]
+            }]
           })
         });
         
         const data = await response.json();
 
-        // 🚨 구체적인 에러 메시지를 사용자에게 보여줍니다.
         if (data.error) {
-          return { ...news, summary: `구글 에러(${data.error.code}): ${data.error.message}` };
+          return { ...news, summary: `구글 에러: ${data.error.message}` };
         }
 
         const aiResponse = data.candidates[0].content.parts[0].text;
         return { ...news, summary: aiResponse };
       } catch (e) {
-        return { ...news, summary: "연결 실패: API 키나 네트워크를 확인하세요." };
+        return { ...news, summary: "AI 서버 연결에 실패했습니다." };
       }
     }));
 
     return NextResponse.json(summarizedNews);
   } catch (error) { 
-    return NextResponse.json({ error: "뉴스 로드 실패" }, { status: 500 });
+    return NextResponse.json({ error: "뉴스 수집 실패" }, { status: 500 });
   }
 }
