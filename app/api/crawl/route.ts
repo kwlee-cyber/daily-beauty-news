@@ -1,4 +1,3 @@
-// file: app/api/crawl/route.ts
 import { NextResponse } from 'next/server';
 import Parser from 'rss-parser';
 
@@ -23,14 +22,15 @@ export async function GET() {
           content: item.contentSnippet || item.snippet || "",
           source: source.name
         }));
-      } catch (e) { return []; }
+      } catch (e) { 
+        return []; 
+      }
     });
 
     const results = await Promise.all(requests);
     const rawNews = results.flat();
 
-    // --- 여기서부터 Groq AI 요약 엔진 ---
-    const summarizedNews = await Promise.all(rawNews.map(async (news) => {
+    const summarizedNews = await Promise.all(rawNews.map(async (news: any) => {
       try {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
@@ -57,7 +57,7 @@ export async function GET() {
     }));
 
     return NextResponse.json(summarizedNews);
-  } catch (error) {
-    return NextResponse.json({ error: "시스템 오류" }, { status: 500 });
+  } catch (error: any) { 
+    return NextResponse.json({ error: "뉴스 수집 중 오류 발생" }, { status: 500 });
   }
 }
