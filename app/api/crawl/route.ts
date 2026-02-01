@@ -16,7 +16,7 @@ const RSS_SOURCES = [
 
 export async function GET() {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return NextResponse.json([{ title: "설정 오류", summary: "Vercel에 GEMINI_API_KEY를 등록해주세요.", source: "System" }]);
+  if (!apiKey) return NextResponse.json([{ title: "환경변수 오류", summary: "Vercel 설정에 GEMINI_API_KEY가 없습니다.", source: "System" }]);
 
   try {
     const requests = RSS_SOURCES.map(async (source) => {
@@ -27,7 +27,7 @@ export async function GET() {
           const match = item.content?.match(imgRegex) || item['content:encoded']?.match(imgRegex);
           return {
             title: item.title || "No Title",
-            content: (item.contentSnippet || item.snippet || "").substring(0, 800),
+            content: (item.contentSnippet || item.snippet || item.content || "").substring(0, 1000),
             source: source.name,
             link: item.link,
             thumbnail: match ? match[1] : (item.enclosure ? item.enclosure.url : null)
@@ -40,24 +40,19 @@ export async function GET() {
 
     const summarizedNews = await Promise.all(rawNews.map(async (news: any) => {
       try {
-        // 💡 주소를 v1으로 고정하여 호환성 문제 해결
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // 💡 중요: 주소 형식을 아래와 같이 정확히 맞춰야 1.5-flash 모델이 응답합니다.
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `너는 전문 뷰티 에디터야. 다음 뉴스 내용을 분석해서 반드시 아래 '형식'대로만 출력해.
-                
-[제목]: (한글 번역 제목)
-[요약]:
-1. (핵심 내용 1줄 요약)
-2. (산업에 미치는 영향 1줄)
-3. (전문가적 시사점 1줄)
+                text: `너는 뷰티 에디터야. 아래 내용을 한국어로 분석해서 출력해. 
+                1. [제목]: 한글로 번역한 핵심 제목
+                2. [요약]: 기사 내용을 3줄로 요약한 것 (1. 2. 3. 번호 붙여서)
 
-뉴스 원문:
-제목: ${news.title}
-내용: ${news.content}`
+                기사 제목: ${news.title}
+                기사 내용: ${news.content}`
               }]
             }]
           })
@@ -65,20 +60,17 @@ export async function GET() {
         
         const data = await response.json();
 
-        // 🚨 API 오류 발생 시 메시지 출력
+        // 🚨 여전히 에러가 난다면 구체적인 원인을 화면에 띄웁니다.
         if (data.error) {
-          return { ...news, summary: `구글 API 에러: ${data.error.message}` };
+          return { ...news, summary: `구글 API 서버 응답 실패: ${data.error.message}` };
         }
 
-        // ✨ 정상 응답 파싱
-        const aiResponse = data.candidates[0].content.parts[0].text;
+        const aiText = data.candidates[0].content.parts[0].text;
         
-        // 제목 추출 (있을 경우만)
-        const titleMatch = aiResponse.match(/\[제목\]:(.*)/);
+        // 텍스트에서 [제목]과 [요약]을 정확히 뜯어내는 로직
+        const titleMatch = aiText.match(/\[제목\]:(.*)/);
         const finalTitle = titleMatch ? titleMatch[1].trim() : news.title;
-        
-        // 요약 부분만 추출
-        const summaryPart = aiResponse.split('[요약]')[1] || aiResponse;
+        const summaryPart = aiText.split('[요약]')[1] || aiText;
 
         return { 
           ...news, 
@@ -86,12 +78,12 @@ export async function GET() {
           summary: summaryPart.trim() 
         };
       } catch (e) {
-        return { ...news, summary: "AI 요약 생성 중 오류가 발생했습니다." };
+        return { ...news, summary: "AI 요약 처리 중 기술적 오류가 발생했습니다." };
       }
     }));
 
     return NextResponse.json(summarizedNews);
   } catch (error) {
-    return NextResponse.json({ error: "데이터 로드 실패" }, { status: 500 });
+    return NextResponse.json({ error: "시스템 로드 실패" }, { status: 500 });
   }
 }
