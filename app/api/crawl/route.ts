@@ -16,7 +16,7 @@ const RSS_SOURCES = [
 
 export async function GET() {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return NextResponse.json([{ title: "Key Missing", summary: "Vercel 설정에 GEMINI_API_KEY가 없습니다.", source: "System" }]);
+  if (!apiKey) return NextResponse.json([{ title: "설정 오류", summary: "Vercel에 GEMINI_API_KEY를 등록해주세요.", source: "System" }]);
 
   try {
     const requests = RSS_SOURCES.map(async (source) => {
@@ -40,39 +40,53 @@ export async function GET() {
 
     const summarizedNews = await Promise.all(rawNews.map(async (news: any) => {
       try {
-        // 주소에 v1beta와 모델명을 정확히 명시합니다.
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // 💡 주소를 v1으로 고정하여 호환성 문제 해결
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `너는 뷰티 전문 에디터야. 다음 뉴스/포스트를 한국어로 분석해서 출력해. 반드시 아래 형식을 지켜.
-[제목]: 자연스러운 한국어 번역 제목
-[요약]: 핵심 내용 3줄 요약
+                text: `너는 전문 뷰티 에디터야. 다음 뉴스 내용을 분석해서 반드시 아래 '형식'대로만 출력해.
+                
+[제목]: (한글 번역 제목)
+[요약]:
+1. (핵심 내용 1줄 요약)
+2. (산업에 미치는 영향 1줄)
+3. (전문가적 시사점 1줄)
 
 뉴스 원문:
-${news.title}
-${news.content}`
+제목: ${news.title}
+내용: ${news.content}`
               }]
             }]
           })
         });
         
         const data = await response.json();
-        
+
+        // 🚨 API 오류 발생 시 메시지 출력
         if (data.error) {
-          return { ...news, summary: `Gemini API Error: ${data.error.message}` };
+          return { ...news, summary: `구글 API 에러: ${data.error.message}` };
         }
 
+        // ✨ 정상 응답 파싱
         const aiResponse = data.candidates[0].content.parts[0].text;
+        
+        // 제목 추출 (있을 경우만)
         const titleMatch = aiResponse.match(/\[제목\]:(.*)/);
         const finalTitle = titleMatch ? titleMatch[1].trim() : news.title;
+        
+        // 요약 부분만 추출
         const summaryPart = aiResponse.split('[요약]')[1] || aiResponse;
 
-        return { ...news, title: finalTitle, summary: summaryPart.trim() };
+        return { 
+          ...news, 
+          title: finalTitle, 
+          summary: summaryPart.trim() 
+        };
       } catch (e) {
-        return { ...news, summary: "AI 요약 처리 중 오류가 발생했습니다." };
+        return { ...news, summary: "AI 요약 생성 중 오류가 발생했습니다." };
       }
     }));
 
