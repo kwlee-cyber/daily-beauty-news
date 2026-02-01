@@ -18,7 +18,6 @@ export async function GET() {
       try {
         const feed = await parser.parseURL(source.url);
         return feed.items.slice(0, 1).map(item => {
-          // 뉴스 본문 내 <img> 태그에서 주소 추출 시도
           const imgRegex = /<img[^>]+src="([^">]+)"/;
           const match = item.content?.match(imgRegex) || item['content:encoded']?.match(imgRegex);
           const thumbnailUrl = match ? match[1] : null;
@@ -49,14 +48,22 @@ export async function GET() {
             model: "llama-3.3-70b-versatile",
             messages: [{
               role: "user", 
-              content: `너는 전문 뷰티 과학 에디터야. 다음 뉴스 내용을 뷰티 성분 및 기술 관점에서 한국어로 친절하게 3줄 요약해줘.\n제목: ${news.title}\n내용: ${news.content}`
+              content: `너는 전문 뷰티 기술 분석가야. 다음 뉴스 내용을 분석해서 반드시 아래 '형식'대로만 출력해줘. 다른 말은 하지 마.
+
+형식:
+1. (핵심 내용 요약 문장)
+2. (AI 관점의 분석이나 영향 분석 문장)
+3. (관련 업계나 사용자를 위한 인사이트 문장)
+
+뉴스 제목: ${news.title}
+뉴스 내용: ${news.content}`
             }]
           })
         });
         const data = await response.json();
         return { ...news, summary: data.choices[0].message.content };
       } catch (e) {
-        return { ...news, summary: "요약 실패 (키 설정을 확인하세요)" };
+        return { ...news, summary: "1. 요약 생성 중 오류가 발생했습니다.\n2. API 키 설정을 확인해주세요.\n3. 잠시 후 다시 시도해주세요." };
       }
     }));
 
