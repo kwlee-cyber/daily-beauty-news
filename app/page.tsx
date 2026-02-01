@@ -1,56 +1,89 @@
-// file: app/page.tsx
-"use client";
-import { useState } from 'react';
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+
+export default function BeautyNewsPage() {
   const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // 접속하자마자 뉴스를 가져오는 기능
+  useEffect(() => {
+    fetchNews();
+  }, []);
 
   const fetchNews = async () => {
-    setNews([]); 
     setLoading(true);
     try {
-      const res = await fetch('/api/crawl');
-      const data = await res.json();
+      const response = await fetch('/api/crawl');
+      const data = await response.json();
       setNews(data);
     } catch (error) {
-      alert("AI 뉴스 수집 중 오류가 발생했습니다.");
+      console.error("뉴스 로드 실패", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-pink-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-pink-500 mb-2 text-center">🧪 Beauty Tech Daily</h1>
-        <p className="text-center text-gray-500 mb-8">AI가 성분 과학과 기술 뉴스를 한국어로 요약해드립니다.</p>
-        
-        <div className="text-center mb-10">
-          <button 
-            onClick={fetchNews} 
-            disabled={loading}
-            className={`btn btn-wide btn-lg ${loading ? 'loading' : ''} bg-pink-500 hover:bg-pink-600 border-none text-white shadow-lg`}
-          >
-            {loading ? 'AI 비서가 요약 중...' : '🔥 실시간 전문 뉴스 수집'}
-          </button>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* 상단 헤더 */}
+      <header className="bg-white border-b py-8 mb-8">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">✨ Beauty Tech Daily</h1>
+          <p className="mt-2 text-gray-500 text-sm">AI가 선별한 오늘의 글로벌 뷰티 사이언스</p>
         </div>
+      </header>
 
-        <div className="grid gap-6">
-          {news.map((item: any, idx) => (
-            <div key={idx} className="card bg-white shadow-md p-6 rounded-2xl border-l-8 border-pink-400">
-              <div className="badge badge-outline text-pink-500 border-pink-500 font-bold">{item.source}</div>
-              <h2 className="card-title text-gray-800 mt-3 text-lg leading-tight">{item.title}</h2>
-              {/* 아래 부분이 AI가 요약한 한글 내용입니다 */}
-              <p className="bg-pink-50 p-4 rounded-lg text-gray-700 mt-3 text-sm whitespace-pre-line leading-relaxed">
-                {item.summary || "내용을 가져오는 중..."}
-              </p>
-              <div className="card-actions justify-end mt-4">
-                <a href={item.link} target="_blank" className="btn btn-ghost btn-sm text-gray-400 underline">원문 보기</a>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <main className="max-w-6xl mx-auto px-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
+            <p className="mt-4 text-gray-500">최신 뉴스를 분석 중입니다...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {news.map((item: any, index: number) => (
+              <article key={index} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                {/* 썸네일 대용 이미지 (랜덤 뷰티 이미지) */}
+                <div className="h-48 bg-rose-100 flex items-center justify-center overflow-hidden">
+                   <img 
+                    src={`https://source.unsplash.com/featured/?cosmetics,beauty&sig=${index}`} 
+                    alt="beauty" 
+                    className="w-full h-full object-cover"
+                    onError={(e:any) => e.target.src = "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=500"}
+                  />
+                </div>
+                
+                <div className="p-6">
+                  <div className="flex items-center mb-3">
+                    <span className="text-xs font-semibold text-rose-500 bg-rose-50 px-2 py-1 rounded">
+                      {item.source}
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 line-clamp-2 leading-snug">
+                    {item.title}
+                  </h2>
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                      {item.summary}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* 하단 새로고침 버튼 */}
+      {!loading && (
+        <button 
+          onClick={fetchNews}
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black text-white px-8 py-3 rounded-full shadow-2xl hover:bg-gray-800 transition-all font-medium"
+        >
+          뉴스 새로고침 🔄
+        </button>
+      )}
     </div>
   );
 }
