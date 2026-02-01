@@ -17,14 +17,21 @@ export async function GET() {
     const requests = RSS_SOURCES.map(async (source) => {
       try {
         const feed = await parser.parseURL(source.url);
-        return feed.items.slice(0, 1).map(item => ({
-          title: item.title,
-          content: item.contentSnippet || item.snippet || "",
-          source: source.name
-        }));
-      } catch (e) { 
-        return []; 
-      }
+        return feed.items.slice(0, 1).map(item => {
+          // 뉴스 본문 내 <img> 태그에서 주소 추출 시도
+          const imgRegex = /<img[^>]+src="([^">]+)"/;
+          const match = item.content?.match(imgRegex) || item['content:encoded']?.match(imgRegex);
+          const thumbnailUrl = match ? match[1] : null;
+
+          return {
+            title: item.title,
+            content: item.contentSnippet || item.snippet || "",
+            source: source.name,
+            link: item.link,
+            thumbnail: thumbnailUrl
+          };
+        });
+      } catch (e) { return []; }
     });
 
     const results = await Promise.all(requests);
@@ -47,10 +54,7 @@ export async function GET() {
           })
         });
         const data = await response.json();
-        return {
-          ...news,
-          summary: data.choices[0].message.content
-        };
+        return { ...news, summary: data.choices[0].message.content };
       } catch (e) {
         return { ...news, summary: "요약 실패 (키 설정을 확인하세요)" };
       }
