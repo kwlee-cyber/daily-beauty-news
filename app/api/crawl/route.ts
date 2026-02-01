@@ -48,18 +48,16 @@ export async function GET() {
             model: "llama-3.3-70b-versatile",
             messages: [{
               role: "user", 
-              // 제목 번역과 3줄 요약을 동시에 수행하도록 지시
-              content: `너는 전문 뷰티 기술 분석가이자 번역가야. 다음 뉴스 내용을 분석해서 반드시 아래 '형식'대로만 한국어로 출력해.
-              한자나 깨진 문자를 절대 사용하지 마.
+              content: `너는 뷰티 기술 에디터야. 다음 뉴스를 분석해서 반드시 아래 '구분자'를 사용해 한국어로 출력해줘. 한자는 쓰지 마.
 
-형식:
-[제목]: (영문 제목을 한국어로 자연스럽고 매력적으로 번역)
-1. (핵심 내용 요약 문장)
-2. (산업에 미치는 영향 분석)
-3. (업계 인사이트 및 시사점)
+[KOR_TITLE] (여기에 한글 번역 제목 작성)
+[KOR_SUMMARY]
+1. (첫 번째 요약)
+2. (두 번째 요약)
+3. (세 번째 요약)
 
-뉴스 원문 제목: ${news.title}
-뉴스 내용: ${news.content}`
+원문 제목: ${news.title}
+원문 내용: ${news.content}`
             }]
           })
         });
@@ -67,15 +65,14 @@ export async function GET() {
         const data = await response.json();
         const aiResponse = data.choices[0].message.content;
 
-        // AI 응답에서 제목과 요약 내용을 분리하는 작업
-        const titleMatch = aiResponse.match(/\[제목\]:(.*)/);
-        const translatedTitle = titleMatch ? titleMatch[1].trim() : news.title;
-        const summaryOnly = aiResponse.replace(/\[제목\]:.*\n?/, "").trim();
+        // 구분자를 기준으로 제목과 요약을 더 정확하게 분리합니다.
+        const titlePart = aiResponse.split('[KOR_SUMMARY]')[0].replace('[KOR_TITLE]', '').trim();
+        const summaryPart = aiResponse.split('[KOR_SUMMARY]')[1]?.trim() || "요약 생성 실패";
 
         return { 
           ...news, 
-          title: translatedTitle, // 번역된 제목으로 교체
-          summary: summaryOnly 
+          title: titlePart || news.title, 
+          summary: summaryPart 
         };
       } catch (e) {
         return { ...news, summary: "요약 생성 중 오류가 발생했습니다." };
