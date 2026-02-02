@@ -22,7 +22,7 @@ export async function GET() {
     const requests = RSS_SOURCES.map(async (source) => {
       try {
         const feed = await parser.parseURL(source.url);
-        return feed.items.slice(0, 1).map(item => {
+        return feed.items.slice(0, 15).map(item => {
           // 💡 이미지 추출 로직 강화 (인스타 등 다양한 포맷 대응)
           const imgRegex = /<img[^>]+src="([^">]+)"/;
           const content = item['content:encoded'] || item.content || "";
