@@ -17,6 +17,8 @@ const redis = Redis.fromEnv();
 
 // 2. RSS 소스 리스트 (이미지 잘 나오는 매체 위주)
 const RSS_SOURCES = [
+  { name: 'Instagram 1', url: 'https://rss.app/feeds/5m99kXlkM6N99jIe.xml' },
+  { name: 'Instagram 2', url: 'https://rss.app/feeds/dFjmfkZ6nHTvI9KE.xml' },
   { name: 'Vogue', url: 'https://www.vogue.com/feed/rss/beauty' },
   { name: 'Allure', url: 'https://www.allure.com/feed/rss' },
   { name: 'Cosmopolitan', url: 'https://www.cosmopolitan.com/rss/style-beauty.xml' },
