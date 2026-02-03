@@ -15,6 +15,11 @@ const parser = new Parser({
 
 const redis = Redis.fromEnv();
 
+// 크롤링 설정
+const CRAWL_INTERVAL = 5 * 60 * 1000; // 5분 (밀리초)
+const DB_KEY = 'beauty_news_list_v3';
+const CRAWL_TIMESTAMP_KEY = 'beauty_news_crawl_timestamp';
+
 // 2. RSS 소스 리스트 (이미지 잘 나오는 매체 위주)
 const RSS_SOURCES = [
   { name: 'Instagram 1', url: 'https://rss.app/feeds/5m99kXlkM6N99jIe.xml' },
@@ -51,9 +56,22 @@ export async function GET() {
   const apiKey = process.env.GROQ_API_KEY;
 
   try {
-    // 💡 DB 키 변경(v3) -> 기존 '이미지 없는 데이터' 무시하고 새로 수집
-    const DB_KEY = 'beauty_news_list_v3';
+    // 기존 뉴스 데이터 가져오기
     const existingNews: any[] = (await redis.get(DB_KEY)) || [];
+    
+    // 마지막 크롤링 시간 확인
+    const lastCrawlTime: number | null = await redis.get(CRAWL_TIMESTAMP_KEY);
+    const now = Date.now();
+    const shouldCrawl = !lastCrawlTime || (now - lastCrawlTime) >= CRAWL_INTERVAL;
+
+    // 최근 크롤링했고 데이터가 있으면 바로 반환 (캐싱 활용)
+    if (!shouldCrawl && existingNews.length > 0) {
+      return NextResponse.json(existingNews, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
+    }
 
     // RSS 크롤링 시작
     const requests = RSS_SOURCES.map(async (source) => {
@@ -83,9 +101,14 @@ export async function GET() {
       (crawled) => !existingNews.some((existing) => existing.id === crawled.id)
     );
 
-    // 새 뉴스가 없으면 기존 데이터 반환
+    // 새 뉴스가 없으면 크롤링 시간만 업데이트하고 기존 데이터 반환
     if (newItems.length === 0) {
-      return NextResponse.json(existingNews);
+      await redis.set(CRAWL_TIMESTAMP_KEY, now);
+      return NextResponse.json(existingNews, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
     }
 
     // AI 요약 (최신 5개)
@@ -126,8 +149,13 @@ export async function GET() {
     // 최신순 정렬 및 저장
     const updatedList = [...summarizedNewItems, ...existingNews].slice(0, 100);
     await redis.set(DB_KEY, updatedList);
+    await redis.set(CRAWL_TIMESTAMP_KEY, now); // 크롤링 시간 저장
 
-    return NextResponse.json(updatedList);
+    return NextResponse.json(updatedList, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
 
   } catch (error: any) {
     return NextResponse.json({ error: "Server Error", message: error.message }, { status: 500 });

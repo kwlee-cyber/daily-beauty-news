@@ -2,6 +2,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+
+// 소스별 색상 매핑
+const getSourceColor = (source: string) => {
+  const colorMap: Record<string, string> = {
+    'Vogue': 'bg-gradient-to-r from-rose-500 to-pink-600',
+    'Allure': 'bg-gradient-to-r from-purple-500 to-indigo-600',
+    'Cosmopolitan': 'bg-gradient-to-r from-pink-500 to-rose-600',
+    'Elle': 'bg-gradient-to-r from-amber-500 to-orange-600',
+    'Marie Claire': 'bg-gradient-to-r from-cyan-500 to-blue-600',
+    'Instagram 1': 'bg-gradient-to-r from-purple-500 to-pink-600',
+    'Instagram 2': 'bg-gradient-to-r from-orange-500 to-red-600',
+  };
+  return colorMap[source] || 'bg-gradient-to-r from-gray-700 to-gray-900';
+};
 
 export default function Home() {
   const [newsList, setNewsList] = useState<any[]>([]);
@@ -42,50 +57,68 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto">
         {newsList.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
             {newsList.map((news, index) => (
-              <article key={index} className="group flex flex-col bg-white border border-black hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all duration-300">
+              <article 
+                key={news.id || news.link} 
+                className="group flex flex-col bg-white border border-black/10 hover:border-black/20 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] transition-all duration-500 rounded-lg overflow-hidden animate-fade-in-up"
+                style={{ animationDelay: `${index * 0.1}s`, opacity: 0 }}
+              >
                 
-                {/* 🖼️ 이미지 섹션 (강력해진 버전) */}
-                <div className="relative aspect-[4/3] overflow-hidden border-b border-black bg-gray-200">
-                  <img 
-                    src={news.thumbnail || "https://via.placeholder.com/400x300?text=Beauty+Archive"} 
-                    alt={news.title}
-                    // 💡 핵심: "나 어디서 왔는지 비밀이야!"라고 브라우저에 말해서 차단을 뚫습니다.
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    onError={(e) => {
-                      // 그래도 이미지가 깨지면 깔끔한 대체 이미지로 바꿉니다.
-                      (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x300?text=No+Image";
-                      // 무한 루프 방지 (대체 이미지도 깨질 경우를 대비)
-                      (e.target as HTMLImageElement).onerror = null;
-                    }}
-                  />
-                  <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[10px] font-bold uppercase">
+                {/* 🖼️ 이미지 섹션 (세련된 버전) */}
+                <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200">
+                  {news.thumbnail ? (
+                    <>
+                      <Image
+                        src={news.thumbnail}
+                        alt={news.title || 'Beauty Archive News'}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out animate-blur-to-clear"
+                        referrerPolicy="no-referrer"
+                        unoptimized
+                        loading="lazy"
+                        placeholder="blur"
+                        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                      />
+                      {/* 그라데이션 오버레이 */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                      <span className="text-gray-400 text-sm font-medium">No Image</span>
+                    </div>
+                  )}
+                  {/* 소스별 색상 배지 */}
+                  <div className={`absolute top-4 left-4 ${getSourceColor(news.source)} text-white px-3 py-1.5 text-[10px] font-bold uppercase z-10 rounded-full shadow-lg backdrop-blur-sm`}>
                     {news.source}
                   </div>
                 </div>
 
                 {/* 카드 본문 내용 */}
-                <div className="p-7 flex flex-col flex-grow">
-                  <h2 className="text-xl font-bold leading-tight mb-5 text-black group-hover:text-blue-600 transition-colors line-clamp-2">
-                    <a href={news.link} target="_blank" rel="noopener noreferrer">
+                <div className="p-6 md:p-7 flex flex-col flex-grow">
+                  <h2 className="text-lg md:text-xl font-bold leading-tight mb-4 md:mb-5 text-gray-900 group-hover:text-rose-600 transition-colors duration-300 line-clamp-2">
+                    <a href={news.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
                       {news.title}
                     </a>
                   </h2>
 
                   {/* 3줄 요약 섹션 */}
-                  <div className="bg-gray-50 p-4 border-l-4 border-black mb-4">
-                    <p className="text-[10px] font-bold uppercase mb-2 text-gray-400 tracking-widest">3줄 요약</p>
-                    <div className="text-[13px] text-gray-800 leading-relaxed whitespace-pre-line font-medium">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 p-4 md:p-5 border-l-4 border-rose-400 mb-4 rounded-r-md shadow-sm">
+                    <p className="text-[9px] md:text-[10px] font-bold uppercase mb-2.5 text-gray-500 tracking-widest">3줄 요약</p>
+                    <div className="text-xs md:text-[13px] text-gray-700 leading-relaxed whitespace-pre-line font-medium">
                       {news.summary}
                     </div>
                   </div>
 
-                  <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">{news.source}</span>
-                    <span className="text-[10px] text-gray-400">
-                      {new Date(news.pubDate).toLocaleDateString('ko-KR')}
+                  <div className="mt-auto pt-4 border-t border-gray-200 flex justify-between items-center">
+                    <span className="text-[9px] md:text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{news.source}</span>
+                    <span className="text-[9px] md:text-[10px] text-gray-400 font-medium">
+                      {new Date(news.pubDate).toLocaleDateString('ko-KR', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
                     </span>
                   </div>
                 </div>
