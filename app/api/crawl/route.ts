@@ -32,7 +32,38 @@ const RSS_SOURCES = [
 ];
 
 // 3. 이미지 추출 도우미 함수
-function findImage(item: any): string | null {
+function findImage(item: any, sourceName?: string): string | null {
+  const isInstagram = sourceName?.includes('Instagram');
+  
+  // Instagram의 경우: media:content가 배열일 수 있으므로 첫 번째만 추출
+  if (isInstagram) {
+    // media:content가 배열인 경우
+    if (Array.isArray(item.mediaContent)) {
+      const firstMedia = item.mediaContent[0];
+      if (firstMedia?.$?.url) return firstMedia.$.url;
+      if (firstMedia?.url) return firstMedia.url;
+    }
+    // media:content가 단일 객체인 경우
+    if (item.mediaContent?.$?.url) return item.mediaContent.$.url;
+    if (item.mediaContent?.url) return item.mediaContent.url;
+    
+    // 본문에서 첫 번째 이미지만 추출
+    const content = item.contentEncoded || item.content || item.description || "";
+    const imgMatches = content.match(/<img[^>]+src="([^">]+)"/g);
+    if (imgMatches && imgMatches.length > 0) {
+      const firstImgMatch = imgMatches[0].match(/src="([^">]+)"/);
+      if (firstImgMatch) return firstImgMatch[1];
+    }
+    
+    // media:thumbnail 배열 처리
+    if (Array.isArray(item.mediaThumbnail)) {
+      const firstThumb = item.mediaThumbnail[0];
+      if (firstThumb?.$?.url) return firstThumb.$.url;
+      if (firstThumb?.url) return firstThumb.url;
+    }
+  }
+  
+  // 일반 소스의 경우: 기존 로직 유지
   // 1순위: media:content (고화질)
   if (item.mediaContent?.$?.url) return item.mediaContent.$.url;
   if (item.mediaContent?.url) return item.mediaContent.url;
@@ -44,7 +75,7 @@ function findImage(item: any): string | null {
   if (item.mediaThumbnail?.$?.url) return item.mediaThumbnail.$.url;
   if (item.mediaThumbnail?.url) return item.mediaThumbnail.url;
 
-  // 4순위: 본문 태그 검색
+  // 4순위: 본문 태그 검색 (첫 번째 이미지만)
   const content = item.contentEncoded || item.content || item.description || "";
   const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
   if (imgMatch) return imgMatch[1];
@@ -84,7 +115,7 @@ export async function GET() {
             content: (item.contentEncoded || item.content || item.contentSnippet || "").substring(0, 500),
             source: source.name,
             link: item.link,
-            thumbnail: findImage(item), // 강화된 이미지 찾기 적용
+            thumbnail: findImage(item, source.name), // 소스 이름 전달하여 Instagram 특별 처리
             pubDate: item.pubDate || new Date().toISOString()
           };
         });
